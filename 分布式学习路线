@@ -1,0 +1,21 @@
+分布式架构策略
+
+Dubbo
+
+Zookeeper
+
+
+
+分布式中间件：
+
+ActiveMQ， kafka，RabbitMQ
+
+Redis、MongoDB
+
+Netty
+
+
+
+微服务：
+
+SpringCloud、Docker
