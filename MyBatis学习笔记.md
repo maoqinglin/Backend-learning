@@ -1,6 +1,6 @@
 # 一、MyBatis简介
 
-编写SQL-》预编译-》设置参数-》执行SQL-》封装结果
+编写SQL ---》**预编译 ---》设置参数 ---》执行SQL** ---》封装结果
 
 框架：整体的解决方案
 
@@ -182,7 +182,7 @@ public void test() throws IOException {
 
 4、typeHandlers：类型处理器
 
-论是 MyBatis 在预处理语句（PreparedStatement）中设置一个参数时，还是从结果集中取出一个值时， 都会用类型处理器将获取的值以合适的方式转换成 Java 类型。
+无论是 MyBatis 在预处理语句（PreparedStatement）中设置一个参数时，还是从结果集中取出一个值时， 都会用类型处理器将获取的值以合适的方式转换成 Java 类型。
 
 | `BooleanTypeHandler`    | `java.lang.Boolean`, `boolean` | 数据库兼容的 `BOOLEAN`               |
 | ----------------------- | ------------------------------ | ------------------------------------ |

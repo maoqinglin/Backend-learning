@@ -468,7 +468,7 @@ java -jar G:\01_SpringBoot_Project\springbootsxt\target\springbootsxt-0.0.1-SNAP
 
 自动配置原理：
 
-1）、SpringBoot启动的时候记载主配置类，开启了自动配置功能 **@EnableAutoConfiguration**
+1）、SpringBoot启动的时候加载主配置类，开启了自动配置功能 **@EnableAutoConfiguration**
 
 2）、@EnableAutoConfiguration作用：
 

@@ -1,10 +1,99 @@
-# 一、
+# 一、vi、vim
+
+## 1、常用命令
+
+1）
+
+2）搜索
+
+**/search：向前搜索**
+
+**n：往下找**
+
+**N：往前找**
+
+
+
+## 2、常用设置
+
+1）显示行号
+
+ 每次打开都显示行号
+
+  修改vi ~/.vimrc 文件，添加：set number
+
+
+
+2）SecureCRT中vim行号下划线问题
+
+具体配置如下：
+session option–>terminal–>appearance，这里有current color scheme选项，不论选择哪一项，或者是新建的，都可以点击edit…按钮，里面底部有三个复选框，中间一个是show underline，取消选择，那进入vi后如果显示行号，那行号不会有下划线！
+
+
+
+# 二、常用命令
+
+
+
+## 1、文件上传
+
+方法1：
+
+linux 上传文件 rz命令 提示command not found 解决方法
+
+```bash
+yum -y install lrzsz
+```
+
+
+
+方法2：
+
+windows拷贝文件到Linux，使用 **Alt+P**，会进入：sftp命令窗口，然后直接拖放文件到sftp命令窗口
+
+
+
+## 2、网络环境
+
+**1）、CentOS没有ifconfig命令，使用 ip addr**
+
+------
+
+2）、关闭防火墙
+
+Ubuntu
+
+查看防火墙状态：ufw status
+
+关闭防火墙：ufw disable
+
+
+
+Centos7.0
+
+查看防火墙状态：firewall-cmd --state
+
+关闭防火墙：systemctl stop firewalld.service
+
+
+
+# 三、开发环境配置
+
+## 1、Java开发环境
+
+Centos7下安装与卸载Jdk1.8
+
+查看已经安装的jdk
+
+```bash
+[root@node-1 jvm]# rpm -qa|grep jd
+```
 
 
 
 
 
-# 二、虚拟机网络
+# 四、虚拟机网络
 
 ## 1、Virtual Box 桥接网卡问题
 

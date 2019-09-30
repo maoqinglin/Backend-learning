@@ -2,7 +2,7 @@
 
 ## 1、概述
 
-ZooKeeper：**为分布式应用提供协调服务，**本质上一个分布式的小文件存储系统
+ZooKeeper：**<span style="color:red">为分布式应用提供协调服务</span>，**本质上一个分布式的小文件存储系统
 
 工作机制：使用观察者模式，服务提供者Provider注册到ZooKeeper注册中心，Consumer订阅ZooKeeper
 
@@ -22,7 +22,7 @@ ZooKeeper = 文件系统 + 通知机制
 
 4）、如果消息被其中一台服务器接受，也会被其它所有的服务器接受
 
-5）、顺序性：包括全局有序和偏序两种：全局有序是指如果在一台服务器上消息啊在消息b前发布，则在所有Server上消息a都将在消息b前被发布；
+5）、顺序性：包括全局有序和偏序两种：全局有序是指如果在一台服务器上消息a在消息b前发布，则在所有Server上消息a都将在消息b前被发布；
 
 5）、数据更新原子性，一次数据更新要么成功，要么失败
 
@@ -42,7 +42,7 @@ ZooKeeper = 文件系统 + 通知机制
 
 ​	3）、一旦ZNode的数据被修改，ZooKeeper将通知各个客户端服务器
 
-![](G:\03_Markdown\Images\分布式\ZooKeeper统一配置管理.png)
+![](Images/ZooKeeper/ZooKeeper统一配置管理.png)
 
 4）统一集群管理
 
@@ -54,19 +54,19 @@ ZooKeeper = 文件系统 + 通知机制
 
 Leader：
 
-ZooKeeper集群工作的核心
+1）ZooKeeper集群工作的核心
 
-事务请求（写操作）的唯一调度和处理者，保证集群事务处理的顺序性；
+2）事务请求（写操作）的唯一调度和处理者，保证集群事务处理的顺序性；
 
-集群内部各个服务器的调度者
+3）集群内部各个服务器的调度者
 
-对于create，setData，delete等有些操作的请求，则需要统一转发给Leader处理，Leader需要决定编号、执行操作，这个过程称为一个事务
+4）对于create，setData，delete等写操作的请求，则需要统一转发给Leader处理，Leader需要决定编号、执行操作，这个过程称为一个事务
 
 Follower：
 
-处理客户端非事务请求（读操作），转发事务请求给Leader
+1）处理客户端非事务请求（读操作），转发事务请求给Leader
 
-参与集群Leader选举投票
+2）参与集群Leader选举投票
 
 此外，针对访问量比较大的ZooKeeper集群，还可以新增观察者角色
 
@@ -123,9 +123,9 @@ export JAVA_CLASSPATH=
 
 ```
 
-**注意：是PATH，与CLASSPATH：前面没有JAVA**
+**<span style="color:red">注意：是PATH，与CLASSPATH：前面没有JAVA</span>**
 
-配置立即生效：
+**配置立即生效：**
 
 ```bash
 source /etc/profile
@@ -138,8 +138,6 @@ source /etc/profile
 1）服务器时间是否同步
 
 date
-
-
 
 2）关闭防火墙 
 一、.对于centos7自带的防火墙的相关指令 
@@ -205,38 +203,15 @@ scp -r -- /opt/module/zookeeper-3.4.14/ root@node-2:/opt/module/
 
 **注意由于文件夹路径有** - 连接符，因此需要使用 -- （告诉bash不解释 - 后面的内容）
 
-如果node-2主机没有module目录，会自动创建module目录，并把 **zookeeper-3.4.14所有内容** 拷贝到module目录下
+如果node-2主机没有module目录，会自动创建module目录，并把 **<span style="color:red">zookeeper-3.4.14目录下的所有内容</span>** 拷贝到module目录下
 
-如果node-2主机有module目录，则**拷贝zookeeper-3.4.14整个目录**至module目录下
-
-
-
-**6）启动问题**
-
-[root@node-1 zookeeper-3.4.14]# bin/zkServer.sh start
-ZooKeeper JMX enabled by default
-Using config: /opt/module/zookeeper-3.4.14/bin/../conf/zoo.cfg
-Starting zookeeper ... STARTED
-**[root@node-1 zookeeper-3.4.14]# bin/zkServer.sh status**
-**ZooKeeper JMX enabled by default**
-**Using config: /opt/module/zookeeper-3.4.14/bin/../conf/zoo.cfg**
-**Error contacting service. It is probably not running.**
-
-**查看：zookeeper.out文件**分析问题原因：连接不上主机
-
-**修改集群中每个主机的 /etc/hosts 文件配置 主机IP地址映射**
-
-```bash
-192.168.199.119   node-1
-```
-
-首次启动，如果不够半数主机启动，也可能报以上错误
+如果node-2主机有module目录，则**<span style="color:red"> 拷贝zookeeper-3.4.14整个目录</span>** 至module目录下
 
 
 
 ## 3、操作ZooKeeper
 
-1）启动ZooKeeper
+**1）启动ZooKeeper**
 
 ```bash
 [root@localhost zookeeper-3.4.14]# bin/zkServer.sh start
@@ -246,9 +221,7 @@ ZooKeeper JMX enabled by default
 Using config: /opt/module/zookeeper-3.4.14/bin/../conf/zoo.cfg
 Starting zookeeper ... STARTED
 
-
-
-2）查看进程是否启动
+**2）查看进程是否启动**
 
 ```bash
 [root@localhost zookeeper-3.4.14]# jps
@@ -257,9 +230,7 @@ Starting zookeeper ... STARTED
 16738 Jps
 16719 QuorumPeerMain
 
-
-
-3）查看状态
+**3）查看状态**
 
 ```bash
 [root@localhost zookeeper-3.4.14]# bin/zkServer.sh status
@@ -268,7 +239,7 @@ Starting zookeeper ... STARTED
 [root@node-1 zookeeper-3.4.14]# bin/zkServer.sh status
 ZooKeeper JMX enabled by default
 Using config: /opt/module/zookeeper-3.4.14/bin/../conf/zoo.cfg
-Mode: follower   
+**Mode: follower**   
 
 
 
@@ -278,7 +249,7 @@ Mode: follower
 [root@localhost zookeeper-3.4.14]# bin/zkCli.sh 
 ```
 
-注意后面不需要 start
+**注意后面不需要 start**
 
 
 
@@ -306,7 +277,7 @@ Stopping zookeeper ... STOPPED
 
 **2.initLimit=10：LF初始通信时限**
 
-集群重点Follower跟随者服务器与Leader领导者服务器之间初始连接时能容忍的最多心跳数，用它来限定集群中的ZooKeeper服务器连接到Leader的时限
+集群中 Follower 与 Leader 领导者服务器之间初始连接时能容忍的最多心跳数，用它来限定集群中的ZooKeeper服务器连接到Leader的时限
 
 **3.syncLimit=5：LF同步通信时限**
 
@@ -316,7 +287,7 @@ Stopping zookeeper ... STOPPED
 
 # 三、ZooKeeper数据模型
 
-Zookeeper数据模型的结构与**Unix文件系统很类似**，拥有一个层次的命名空间，都是采用树形层次结构，ZooKeeper树种的每个节点被称为一个ZNode。和文件系统的目录树一样，ZooKeeper树种的每个节点可以拥有子节点。但也有不同之处：
+Zookeeper数据模型的结构与**Unix文件系统很类似**，拥有一个层次的命名空间，都是采用树形层次结构，ZooKeeper树中的每个节点被称为一个ZNode。和文件系统的目录树一样，ZooKeeper树中的每个节点可以拥有子节点。但也有不同之处：
 
 **1）、ZNode兼具文件和目录两种特点。**既像文件一样维护着数据、元信息、ACL、时间戳等数据结构，**又像目录一样可以作为路径标识的一部分**，并可以具有子ZNode。用户对ZNode具有增、删、改、查等操作（权限允许的情况下）
 
@@ -348,7 +319,7 @@ Znode有两种，分别为**临时节点和永久节点。**
 
 节点的类型在创建时即被确定，并且不能改变。
 
-临时节点：该节点的生命周期依赖于创建它们的会话。**一旦会话结束，临时节点将被自动删除**，当然也可以手动删除。**临时节点不允许拥有子节点**。
+临时节点：该节点的生命周期依赖于创建它们的会话。**<span style="color:red">一旦会话结束，临时节点将被自动删除</span>**，当然也可以手动删除。**临时节点不允许拥有子节点**。
 
 
 
@@ -358,13 +329,13 @@ Znode还有一个序列化的特性，如果创建的时候指定的话，改Zno
 
 这样便会存在四种类型的Znode节点，分别对应：
 
-​	PERSISTENT：永久节点
+​	**PERSISTENT：永久节点**
 
-​	EPHEMERAL：临时节点
+​	**EPHEMERAL：临时节点**
 
-​	PERSISTENT_SEQUENTIAL：永久节点、序列化
+​	**PERSISTENT_SEQUENTIAL：永久节点、序列化**
 
-​	EPHEMERAL_SEQUENTIAL：临时节点、序列化
+​	**EPHEMERAL_SEQUENTIAL：临时节点、序列化**
 
 
 
@@ -378,7 +349,7 @@ Znode还有一个序列化的特性，如果创建的时候指定的话，改Zno
 
 每个Znode都包含了一系列的属性，通过命令 get，可以获得节点的属性。
 
-dataVersion：数据版本号，每次对节点进行set操作，dataVersion的值都会增加1
+**dataVersion：数据版本号，每次对节点进行set操作，dataVersion的值都会增加1**
 
 cversion：子节点的版本号。当Znode的子节点有变化时，cversion的值就会增加1
 
@@ -386,7 +357,7 @@ aclVersion：ACL的版本号
 
 cZxid：Znode创建的事务id
 
-mZxid：Znode被修改的事务id，即每次对Znode的修改都会更新mZxid。
+**mZxid：Znode被修改的事务id，即每次对Znode的修改都会更新mZxid。**
 
 对于zk来说，每次的变化都会产生一个唯一的事务id，zxid（ZooKeeper Transaction Id）。通过zxid，可以确定更新操作的先后顺序。例如如果zxid1 小于 zxid2，说明 zxid1 操作先于 zxid2 发生，zxid对于整个zk都是唯一的，即使操作的是不同的Znode。
 
@@ -734,7 +705,7 @@ ZooKeeper默认算法是 FastLeaderElection，采用投票数大于半数则胜�
 
 1）、每个机器都给自己投票
 
-2）、投票数过半，选举结束
+**2）、投票数过半，选举结束**
 
 最有优势的是投票数刚过半数的那台机器
 
@@ -742,7 +713,7 @@ ZooKeeper默认算法是 FastLeaderElection，采用投票数大于半数则胜�
 
 ​	服务器1启动，给自己投票，然后发投票信息，由于其它机器还没有启动所以它收不到反馈信息，服务器1 的状态一直属于looking
 
-​	服务器2启动，给自己投票，**同时与之前启动的服务器1交换结果**，由于服务器2的编号大所以服务器2胜出，但此时投票数没有大于半数，所以两个服务器的状态依然是looking
+​	服务器2启动，给自己投票，**同时与之前启动的服务器1交换结果**，**由于服务器2的编号大所以服务器2胜出，**但此时投票数没有大于半数，所以两个服务器的状态依然是looking
 
 ​	**服务器3启动，给自己投票，同时与之前启动的服务器1,2交换信息，由于服务器3的编号最大所以服务器3胜出，此时投票数正好大于半数，所以服务器3成为领导者，服务器1,2成为小弟；投票到此结束**
 
@@ -754,7 +725,7 @@ ZooKeeper默认算法是 FastLeaderElection，采用投票数大于半数则胜�
 
 ## 3、非全新集群选举
 
-对于运行正常的ZooKeeper集群，中途中机器 down 掉，需要重新选举时，选举过程就需要加入**数据ID**、**服务器ID**和**逻辑时钟**
+对于运行正常的ZooKeeper集群，**中途中机器 down 掉，需要重新选举时**，选举过程就需要加入**数据ID**、**服务器ID**和**逻辑时钟**
 
 ​	数据ID：数据新的 version 就大，数据每次更新都会更新 version。
 
@@ -989,59 +960,29 @@ ZooKeeper JMX enabled by default
 Using config: /opt/module/zookeeper-3.4.14/bin/../conf/zoo.cfg
 **Error contacting service. It is probably not running**
 
-原因：jdk环境没有配置
+原因1：jdk环境没有配置
 
 
 
-## Centos7下安装与卸载Jdk1.8
+原因2：
 
-查看已经安装的jdk
+**查看：zookeeper.out文件**分析问题原因：连接不上主机
+
+**修改集群中每个主机的 /etc/hosts 文件配置 主机IP地址映射**
 
 ```bash
-[root@node-1 jvm]# rpm -qa|grep jd
+192.168.199.119   node-1
 ```
 
 
 
-## 2、文件上传
+原因3：
 
-方法1：
-
-linux 上传文件 rz命令 提示command not found 解决方法
-
-```bash
-yum -y install lrzsz
-```
+首次启动，如果不够半数主机启动，也可能报以上错误
 
 
 
-方法2：
 
-windows拷贝文件到Linux，使用 **Alt+P**，会进入：sftp命令窗口，然后直接拖放文件到sftp命令窗口
-
-
-
-## 3、网络环境
-
-**1）、CentOS没有ifconfig命令，使用 ip addr**
-
-****
-
-2）、关闭防火墙
-
-Ubuntu
-
-查看防火墙状态：ufw status
-
-关闭防火墙：ufw disable
-
-
-
-Centos7.0
-
-查看防火墙状态：firewall-cmd --state
-
-关闭防火墙：systemctl stop firewalld.service
 
 
 
