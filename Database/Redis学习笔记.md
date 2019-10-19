@@ -792,7 +792,7 @@ Redis 的set是string类型的无序集合。它是通过 HashTable 实现的
 
 
 
-## 5、hash：K - V模式不变，但 V 是一个价值对
+## 5、hash：K - V模式不变，但 V 是一个键值对
 
 键值对集合，是一个string类型的field 和 value 映射表，hash 特别适合用于存储对象
 

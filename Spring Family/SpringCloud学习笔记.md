@@ -968,7 +968,7 @@ Eureka看明白了这一点，因此在设计时就优先保证可用性。Eurek
 
 ## 1、概述
 
-Ribbon提供客户端的软件负载均衡算法
+Ribbon提供**客户端的软件**负载均衡算法
 
 1）集中式LB：即在服务的消费方和提供方之间使用独立的 LB 设施（可以是硬件，如F5，也可以是软件，如 Nginx），由该 设施负责把请求通过某种策略转发至服务的提供方；
 
@@ -1223,6 +1223,403 @@ info:
 
 
 
+## 4、核心组件IRule
+
+根据特定算法从服务列表中选取一个要访问的服务
+
+RoundRobinRule：轮询，默认
+
+RandomRule：随机
+
+AvailabilityFilteringRule：会先过滤掉多次访问故障而处于断路器跳闸状态的服务，还有并发的连接数量超过阈值的服务，然后对剩余的服务列表按照轮询策略进行访问
+
+RetryRule：先按照轮询策略，如果获取服务失败在指定时间内进行重试，获取可用的服务
+
+## 5、自定义Ribbon负载均衡算法
+
+
+
+
+
+# 六、feign：Rest Client
+
+Feign 是一个声明式的 **Web 服务客户端**，使得编写 Web 服务客户端变得非常容易，只需要创建一个接口，然后在上面添加注解即可。
+
+前面使用 Ribbon+RestTemplate 时，利用 RestTemplate 对 http 请求的封装处理，形成了一套模板化的调用方法。但是在实际开发中，由于对服务依赖的调用可能不止一处，往往一个接口会被多处调用，所以通常都会针对每个微服务自行封装一些客户端类来包装这些依赖服务的调用。所以，Feign在此基础上做了进一步封装，由他来帮助我们定义和实现依赖服务接口的定义。在Feign的实现下，我们只需创建一个接口并使用注解的方式来配置它（以前是 Dao 接口上面标注 Mapper 注解，现在是一个微服务接口上面标注一个 Feign注解即可），即可完成对服务提供方的接口绑定，简化了使用 SpringCloud Ribbon时，自动封装服务调用客户端的开发量。
+
+
+
+**Feign集成了Ribbon**
+
+利用Ribbon维护了 MicroServiceCoud-Dept的服务列表信息，并且通过轮询实现了客户端的负载均衡。而与Ribbon不同的是，通过Feign只需要定义服务绑定接口且以声明式的方法，优雅而简单的实现了服务调用
+
+
+
+Feign通过接口的方法调用 Rest 服务（之前是 Ribbon+RestTemplate），该请求发送给 Eureka 服务器（http://microservicecloud-dept/dept/list），通过 Feign直接找到服务接口，由于在进行服务调用的时候融合了 Ribbon技术，所以也支持负载均衡作用。
+
+
+
+## 1、使用步骤
+
+1）参考 microservicecloud-consumer-dept-80  Module，创建 microservicecloud-consumer-dept-feign   Module
+
+2）修改 pom.xml 添加 openFeign 负载均衡依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+```
+
+3）修改 microservicecloud-api  Module，增加接口
+
+添加依赖
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+</dependencies>
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-dependencies</artifactId>
+            <version>${spring-cloud.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+添加微服务访问接口
+
+```java
+// Rest 负载均衡
+@FeignClient(value = "microservicecloud-dept")
+public interface DeptClientService {
+
+    //    请求服务 Rest 接口的封装
+    @RequestMapping(value = "/dept/get/{id}")
+    Dept get(@PathVariable("id") Long id);
+
+    @RequestMapping("/dept/add")
+    boolean add(Dept dept);
+
+    @RequestMapping(value = "/dept/list")
+    List<Dept> list();
+}
+```
+
+**4）修改 microservicecloud-consumer-dept-feign 客户端 controller**
+
+```java
+@RestController
+public class DeptController_Consumer_Feign {
+
+    //    集成了 Feign后，使用 DeptClientService 替换 RestTemplate 请求服务
+    @Autowired
+    DeptClientService deptClientService;
+
+    @RequestMapping(value = "/consumer/dept/get/{id}", 
+                    produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public Dept get(@PathVariable("id") Long id) {
+        return deptClientService.get(id);
+    }
+
+    @RequestMapping("/consumer/dept/add")
+    public boolean add(Dept dept) {
+        return deptClientService.add(dept);
+    }
+
+    @RequestMapping(value = "/consumer/dept/list", 
+                    produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public List<Dept> list() {
+        return deptClientService.list();
+    }
+
+}
+```
+
+**对比使用 RestTemplate 实现**
+
+```java
+@RestController
+public class DeptController_Consumer {
+
+//    public static final String REST_URL_PREFIX = "http://localhost:8001"; 不需要端口
+    public static final String REST_URL_PREFIX = "http://microservicecloud-dept";
+
+    @Autowired
+    RestTemplate restTemplate;
+
+//    使用Ribbon负载均衡后，会依赖jackson-dataformat-xml这个依赖，导致返回数据为xml
+    @RequestMapping(value = "/consumer/dept/get/{id}",
+                    produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public Dept get(@PathVariable("id") Long id) {
+        return restTemplate.getForObject(
+            REST_URL_PREFIX + "/dept/get/" + id, Dept.class);
+    }
+
+    @RequestMapping("/consumer/dept/add")
+    public boolean add(Dept dept) {
+        return restTemplate.postForObject(
+            REST_URL_PREFIX + "/dept/add", dept, Boolean.class);
+    }
+
+    @RequestMapping(value = "/consumer/dept/list", 
+                    produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public List<Dept> list() {
+        return restTemplate.getForObject(REST_URL_PREFIX + "/dept/list", List.class);
+    }
+
+}
+```
+
+
+
+5）启用 Feign 负载均衡
+
+```java
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+@EnableEurekaClient
+@EnableFeignClients
+public class DeptConsumer80_feign_App {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DeptConsumer80_feign_App.class, args);
+    }
+}
+```
+
+
+
+# 七、Hystrix
+
+## 1、服务雪崩
+
+多个微服务之间调用的时候，假设微服务 A 调用微服务 B 和微服务 C，微服务 B 和微服务 C又调用其它的服务，这就是所谓的”扇出“。如果扇出的链路上某个微服务的调用响应时间过长或者不可用，对微服务A的调用就会占用越来越多的系统资源，进而引起系统崩溃，所谓的”雪崩效应“。
+
+
+
+对于高流量的应用来说，单一的后端依赖可能会导致所有服务器上的所有资源都在几秒钟内饱和。比失败更糟糕的是，这些应用程序还可能导致服务之间的延迟增加，备份队列，线程和其它系统资源紧张，导致整个系统发生更多的级联故障。这些都表示需要对故障和延迟进行隔离和管理，以便单个依赖关系的失败，不能取消整个应用程序或系统。
+
+
+
+Hystrix是一个用于处理分布式系统的**<span style="color:red">延迟和容错</span>**的开源库，在分布式系统里，许多依赖不可避免的会调用失败，比如超市、异常等，Hystrix能够保证在一个依赖出问题的情况下，<span style="color:red">**不会导致整体服务失败，避免级联故障，以提高分布式系统的弹性。**</span>
+
+”断路器“本身是一种开关装置，当某个服务单元发生故障之后，通过断路器的故障监控（类似熔断保险丝），<span style="color:red">**向调用方返回一个符合预期的、可处理的备选响应（FallBack），而不是长时间的等待或者抛出调用方无法处理的异常，**</span>这样就保证了服务调用方的线程不会被长时间、不必要地占用，从而避免了故障在分布式系统中的蔓延，乃至雪崩。
+
+
+
+## 2、服务熔断：@HystrixCommand 
+
+1）参考 microservicecloud-provider-dept-8001 创建 Module  
+
+microservicecloud-provider-dept-hystrix-8001
+
+2）修改 pom.xml 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+</dependency>
+```
+
+3）编辑 application.yml，修改服务实例名称
+
+```yaml
+eureka:
+  instance:
+    instance-id: microservicecloud-dept8001-hystrix   # 自定义服务的名称
+    prefer-ip-address: true     # 显示微服务的 IP 地址
+```
+
+4）修改 controller，添加熔断处理
+
+```java
+@RequestMapping(value = "/dept/add", method = RequestMethod.POST)
+public boolean add(@RequestBody Dept dept) {  // 必须加 @RequestBody
+    return deptService.add(dept);
+}
+
+@RequestMapping(value = "/dept/get/{id}", method = RequestMethod.GET)
+@HystrixCommand(fallbackMethod = "processHystrix_Get")  // 调用服务失败并抛出错误信息后，调用熔断标注的方法
+public Dept get(@PathVariable("id") Long id) {
+    Dept dept = deptService.get(id);
+    if (dept == null) {
+        throw new RuntimeException("该ID：" + id + " 没有对应的信息");
+    }
+    return dept;
+}
+
+// 异常处理耦合，可以参考 AOP 机制，使用 Hystrix 服务降级处理
+public Dept processHystrix_Get(@PathVariable("id") Long id) {
+    return new Dept().setDeptno(id)
+        .setDname("该ID："+ id +" 没有对应的信息，Null --- @Hystrix")
+        .setDb_source("no this database in MySQL");
+}
+```
+
+5）开启熔断机制，并测试
+
+```java
+@SpringBootApplication
+@EnableEurekaClient     // 本服务启动后会自动注册进 Eureka 服务中
+@EnableDiscoveryClient
+@EnableHystrix  // 开启熔断机制
+public class DeptProvider8001_Hystrix_App {
+    public static void main(String[] args) {
+        SpringApplication.run(DeptProvider8001_Hystrix_App.class, args);
+    }
+}
+```
+
+
+
+## 3、服务降级：利用 AOP
+
+整体资源快不够了，忍痛将某些服务先关掉，待渡过难关，再开启回来。
+
+**服务降级处理是在客户端实现完成的，与服务端没有关系**
+
+1）修改 **microservicecloud-api** 工程
+
+根据已有的 DeptClientService 接口新建 FallbackFactory 接口的类 实现类：DeptClientServiceFallbackFactory
+
+```java
+// 必须注入容器，统一处理异常，实现服务降级，以后其它的客户端不会调用服务接口
+@Component
+public class DeptClientServiceFallbackFactory implements FallbackFactory<DeptClientService> {
+    @Override
+    public DeptClientService create(Throwable throwable) {
+        return new DeptClientService() {
+            @Override
+            public Dept get(Long id) {
+                return new Dept().setDeptno().setDname().setDb_source();
+            }
+
+            @Override
+            public boolean add(Dept dept) {
+                return false;
+            }
+
+            @Override
+            public List<Dept> list() {
+                return null;
+            }
+        };
+    }
+}
+
+```
+
+2）修改 **microservicecloud-api** 工程，修改 DeptClientService接口的 **@FeignClient** 注解，
+
+添加 **fallbackFactory** 属性
+
+```java
+// Rest 负载均衡
+//@FeignClient(value = "microservicecloud-dept")
+@FeignClient(value = "microservicecloud-dept", fallbackFactory = DeptClientServiceFallbackFactory.class)
+public interface DeptClientService {
+```
+
+3）修改 microservicecloud-consumer-dept-feign 工程，配置 feign.hystrix.enabled=true
+
+```yaml
+server:
+  port: 80
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7002.com:7002/eureka/,http://eureka7003.com:7003/eureka/ # 集群配置
+
+feign:
+  hystrix:
+    enabled: true
+```
+
+4）测试
+
+1. 先启动 Eureka 3 个集群：microservicecloud-eureka-7001，microservicecloud-eureka-7002，microservicecloud-eureka-7003
+
+2. 再启动 microservicecloud-provider-dept-8001 微服务
+
+3. 最后启动 microservicecloud-consumer-dept-feign 客户端
+
+4. 正常访问：http://localhost/consumer/dept/get/1
+
+   返回结果：
+
+   **{**"deptno": **1**,"dname": "开发部","db_source": "clouddb01"**}**
+
+   
+
+5. 关闭 microservicecloud-provider-dept-8001 微服务，继续访问
+
+   返回结果：
+
+   **{**"deptno": **1**,"dname": "该ID：1 没有对应的信息，Consumer客户端提供降级信息，此刻服务Provider已经关闭","db_source": "no data in MySQL"**}**
+
+
+
+**服务降级，让客户端在服务端不可用时也会获得提示信息而不会挂起耗死服务器**
+
+
+
+## 4、服务降级与熔断
+
+**服务熔断：**
+
+一般是某个服务故障或者异常引起，类似现实世界中的”保险丝“，当某个异常条件被触发，
+
+**<span style="color:red">直接熔断整个服务，而不是一直等到此服务超时。</span>**
+
+
+
+服务降级：**客户端回调处理**
+
+所谓降级，一般是从整体负荷考虑。就是当某个服务熔断之后，服务器不再被调用，<span style="color:red">**此时客户端可以自己准备一个本地的 fallback 回调，返回一个缺省值**。</span>
+
+这样做，虽然服务水平下降，但好歹可用，比直接挂掉要强。
+
+
+
+# 八、Zuul
+
+Zuul包含了对请求的路由和过滤两个最主要的功能：
+
+其中路由功能负责将外部请求转发到具体的微服务实例上，是实现外部访问统一入口的基础而过滤器功能则负责对请求的处理过程进行干预，是实现请求校验、服务聚合等功能的基础。Zuul和Eureka进行整合，将Zuul自身注册为 Eureka 服务治理下的应用，同时从 Eureka从获得其它微服务的消息，也即以后的访问微服务都是通过 Zuul 跳转后获得。
+
+注意：Zuul 服务最终还是会注册进 Eureka
+
+**提供 = 代理+路由+过滤三大功能**
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1360,3 +1757,4 @@ eureka:
 ```
 
 <span style="color:red">**defualtZone 写错了：defaultZone**</span>
+
