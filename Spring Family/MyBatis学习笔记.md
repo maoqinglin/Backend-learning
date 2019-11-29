@@ -1601,75 +1601,7 @@ Employee{id=3, lastName='小云云', gender=0, email='111@gamil.com'}
 
 ## 1、运行流程
 
-![](.\Images\MyBatis运行流程.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![](..\Images\MyBatis运行流程.png)
 
 
 

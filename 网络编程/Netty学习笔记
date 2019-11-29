@@ -1,0 +1,414 @@
+# 一、Netty介绍
+
+1）异步的、**基于事件驱动**的网络应用框架，用以快速开发高性能、高可靠性的网络IO程序
+
+2）Netty 主要针对在TCP协议下，面向Clients端的高并发应用，或者Peer-to-Peer场景下的大量数据持续传输的应用
+
+3）Netty本质是一个NIO框架，适用于服务器通讯相关的多种应用场景
+
+4）要透彻理解Netty，需要先学习NIO，才能阅读Netty的源码
+
+# 二、IO模型
+
+## 1、BIO，NIO，AIO
+
+BIO：同步阻塞，服务器实现模式为一个连接一个线程，可以通过线程池机制改善
+
+NIO：同步非阻塞，
+
+AIO：异步非阻塞
+
+## 2、适用场景分析
+
+1）BIO方式适用于连接数目比较小且固定的架构，这种方式对服务器资源要求比较高，并发局限于应用中，JDK1.4以前唯一选择
+
+2）NIO方式适用于连接数多且连接比较短（轻操作）的架构，比如聊天服务器，弹幕系统，服务器间通讯等。编程比较复杂，JDK1.4开始支持
+
+3）AIO方式使用于连接数目多且连接比较长（重操作）的架构，比如相册服务器，充分调用OS参与并发操作，编程比较复杂，JDK7开始支持
+
+## 3、BIO问题
+
+1）每个请求都需要创建独立的线程，与对应的客户端进行数据Read，业务处理，数据Write
+
+2）当并发数较大时，需要创建大量线程来处理连接，系统资源占用较大
+
+3）连接建立后，如果当前线程暂时没有数据可读，则线程就阻塞在Read操作上，造成线程资源浪费
+
+```java
+public class BIOServer {
+    public static void main(String[] args) throws IOException {
+        // 线程池机制
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        ServerSocket serverSocket = new ServerSocket(6666);
+        System.out.println("服务器启动了");
+        while (true) {
+            System.out.println("等待连接");
+            final Socket socket = serverSocket.accept();
+            System.out.println("连接到了一个客户端");
+            executorService.execute(new Runnable() {
+                @Override
+                public void run() {
+                    handle(socket);
+                }
+            });
+        }
+    }
+
+    private static void handle(Socket socket) {
+        System.out.println("线程信息：id=" + Thread.currentThread().getId() + ", name=" + Thread.currentThread().getName());
+        InputStream inputStream = null;
+        try {
+            inputStream = socket.getInputStream();
+            byte[] buffer = new byte[1024];
+            while (true) {
+                System.out.println("read......");
+                int read = inputStream.read(buffer);
+                if (read != -1) {
+                    System.out.println(new String(buffer, 0, read));
+                } else {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            System.out.println("关闭和客户端的连接");
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+```
+
+
+
+# 三、NIO
+
+NIO是面向缓冲区，或者面向块编程的。数据读取到一个它稍候处理的缓冲区，需要时可在缓冲区中前后移动，这就增加了处理过程中的灵活性，使用它可以提供非阻塞式的高伸缩性网络
+
+非阻塞：线程从某个Channel发送请求或者读取数据，它仅能得到当前可用的数据，如果目前没有数据可用，什么都不会获取，**<span style="color:red">而不是阻塞线程</span>**，所以直至数据可读取之前，该线程可以继续做其他的事情
+
+## 1、基本介绍
+
+```java
+public class BasicBuffer {
+    public static void main(String[] args) {
+        IntBuffer allocate = IntBuffer.allocate(5);
+
+        for (int i=0; i < allocate.capacity();i++){
+            // 写数据
+            allocate.put(i*2);
+        }
+
+        // 读写模式切换
+        allocate.flip();
+
+        // 读数据
+        while (allocate.hasRemaining()) {
+            System.out.println(allocate.get());
+        }
+    }
+}
+```
+
+### 1.1、NIO三大核心原理
+
+![](../Images/Netty/NIO核心组件间关系.png)
+
+1）每个 Channel 都会对应一个 Buffer
+
+2）一个 Selector对应一个线程，一个线程对应多个 channel（连接）
+
+3）该图反应了有三个 Channel 注册到该 Selector
+
+4）程序切换到哪个 Channel 是由事件决定的，Event 就是一个重要的概念
+
+5）Selector 会根据不同的事件，切换不同的通道
+
+6）Buffer 就是一个内存块，底层是有一个数组
+
+7）数据的读取写入是通过 Buffer，双向可读写（BIO单向），需要 flip 方法切换
+
+8）Channel 是双向的，可以返回底层操作系统的情况，比如 Linux；底层的操作系统通道就是双向的
+
+
+
+### 1.2 NIO和BIO的比较
+
+1）BIO以流的方式处理数据，而NIO以块的方式处理数据，块I/O的效率比流 I/O高很多
+
+2）BIO是阻塞的，NIO是非阻塞的
+
+3）BIO基于字节流和字符流进行操作，而NIo基于 Channel（管道）和 Buffer（缓冲区）进行操作，数据总是从通道读取到缓冲区中，或者从缓冲区写入到通道中。Selector（选择器）用于监听多个通道的事件（比如：连接请求，数据到达等），**因此使用单个线程可以监听多个客户端通道**
+
+
+
+## 2、Buffer
+
+缓冲区本质上是一个读写数据的内存块，可以理解成是一个容器对象（含数组），该对象提供了一组方法，可以更轻松地使用内存块，缓冲区对象内置了一些机制，能够跟踪和记录缓冲区的状态变化情况。Channel提供从文件、网络读取数据的渠道，但是读取或写入的数据都必须经由 Buffer
+
+```java
+private int mark = -1; 
+private int position = 0; // 位置，下一个要被读写的元素的索引，每次读写缓冲区数据时数据都会改变值，为下次读写做准备
+private int limit; // 缓冲区当前终点，不能对超过缓冲区极限位置进行读写操作。limit可修改
+private int capacity; // 容量，既可以容纳的最大数据量；在缓冲区创建时被设定并且不能改变
+
+// 读写切换时，需要更新limit及position
+public final Buffer flip() {
+    limit = position;
+    position = 0;
+    mark = -1;
+    return this;
+}
+
+public final Buffer clear() {
+    position = 0;
+    limit = capacity;
+    mark = -1;
+    return this;
+}
+```
+
+## 3、Channel
+
+1）NIO的通道类似于流，但有些区别如下：
+
+- 通道可以同时进行读写，而流只能读或者只能写
+- 通道可以实现异步读写数据
+- 通道可以从缓冲读数据，也可以写数据到缓冲
+
+### 3.1 常用的 Channel 类有：
+
+FileChannel、DatagramChannel、ServerSocketChannel、SocketChannel
+
+FileChannel类主要用来对本地文件进行IO操作，常见方法有：
+
+```java
+public abstract int read(ByteBuffer dst); // from Channel into Buffer
+public abstract int write(ByteBuffer src); // from Buffer write into Channel
+
+// 从目标通道中复制数据到当前通道
+public abstract long transferFrom(ReadableByteChannel src,
+                                  long position, long count);
+// 把数据从当前通道复制给目标通道
+public abstract long transferTo(long position, long count,
+                                WritableByteChannel target);
+```
+
+
+
+### 3.2 FileChannel实现写文件：
+
+```java
+public class NIOFileChannel01 {
+    public static void main(String[] args) throws IOException {
+        // 创建一个输出流 -> Channel
+        FileOutputStream fileOutputStream = 
+            new FileOutputStream("g:\\xiaolin.txt");
+
+        // 通过 fileOutputStream 获取对应的 FileChannel
+        FileChannel fileChannel = fileOutputStream.getChannel();
+
+        String hello = "小盈子，好漂亮";
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
+        // 将数据写入缓冲区
+        byteBuffer.put(hello.getBytes());
+
+        // 因为需要将ByteBuffer 中数据写入 FileChannel，因此需要 flip，
+        // 更新position位置
+        byteBuffer.flip();
+
+        // 将 ByteBuffer 数据写入到 FileChannel 中
+        fileChannel.write(byteBuffer);
+        fileOutputStream.close();
+    }
+}
+```
+
+### 3.3 FileChannel 读文件
+
+```java
+public class NIOFileChannel02 {
+    public static void main(String[] args) throws IOException {
+
+        File file = new File("g:\\xiaolin.txt");
+        FileInputStream fileInputStream = new FileInputStream(file);
+
+        // 从 fileInputStream 获取 FileChannel
+        FileChannel channel = fileInputStream.getChannel();
+        // 创建缓冲区
+        ByteBuffer byteBuffer = ByteBuffer.allocate((int) file.length());
+        // 将通道数据读到 ByteBuffer 中
+        channel.read(byteBuffer);
+
+        System.out.println(new String(byteBuffer.array()));
+        fileInputStream.close();
+    }
+}
+```
+
+### 3.4 单个Buffer实现文件拷贝
+
+```java
+public class NIOFileChannel03 {
+    public static void main(String[] args) throws IOException {
+        FileInputStream fileInputStream = new FileInputStream("1.txt");
+        FileChannel srcFileChannel = fileInputStream.getChannel();
+
+        FileOutputStream outputStream = new FileOutputStream("2.txt");
+        FileChannel dstFileChannel = outputStream.getChannel();
+
+        ByteBuffer byteBuffer = ByteBuffer.allocate(512);
+        while (true) { // 循环读取
+            // 非常重要的操作，清空 buffer
+            byteBuffer.clear();
+
+            // srcFileChannel -> byteBuffer
+            int read = srcFileChannel.read(byteBuffer);
+            System.out.println("read=" + read);
+            if (read == -1) {
+                break;
+            }
+            byteBuffer.flip(); // 需要修改position和limit
+            // byteBuffer -> dstFileChannel
+            dstFileChannel.write(byteBuffer);
+        }
+
+        fileInputStream.close();
+        outputStream.close();
+    }
+}
+```
+
+### 3.5 使用 transferFrom 实现文件拷贝
+
+```java
+public class NIOFileChannel04 {
+    public static void main(String[] args) throws IOException {
+        FileInputStream fileInputStream = 
+            new FileInputStream("g:\\xiaolin.txt");
+        FileOutputStream fileOutputStream = 
+            new FileOutputStream("g:\\yingzi.txt");
+
+        FileChannel srcChannel = fileInputStream.getChannel();
+        FileChannel dstChannel = fileOutputStream.getChannel();
+
+        dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
+
+        srcChannel.close();
+        dstChannel.close();
+        
+        fileInputStream.close();
+        fileOutputStream.close();
+    }
+}
+```
+
+
+
+### 3.6 Buffer与Channel注意
+
+1）ByteBuffer 支持类型化的 put 和 get，put放入的是什么数据类型，get就应该使用相应的数据类型来取出，否则可能有 BufferUnderFlowException异常
+
+2）可以将一个 Buffer 转成只读 Buffer
+
+3）NIO 还提供了 MappedByteBuffer，可以让文件直接在内存（堆外内存）中进行修改，而如果同步到文件由 NIO 来完成
+
+内存中直接修改文件（堆外内存）
+
+```java
+public class MappedByteBufferTest {
+    public static void main(String[] args) throws IOException {
+        RandomAccessFile randomAccessFile = new RandomAccessFile("1.txt","rw");
+
+        FileChannel channel = randomAccessFile.getChannel();
+        MappedByteBuffer mappedByteBuffer = channel.map(FileChannel.MapMode.READ_WRITE,0,6);
+
+        mappedByteBuffer.putChar(0,'H');
+        mappedByteBuffer.putChar(2,'D');
+
+        randomAccessFile.close();
+    }
+}
+```
+
+
+
+### 3.7 Scattering与Gathering
+
+NIO支持通过多个 Buffer（即Buffer数组）完成读写操作，即Scattering和Gathering
+
+```java
+/**
+ * Scattering：将数据写入到 buffer 时，可以采用 buffer 数组，依次写入【分散】
+ * Gathering：从 buffer 读取数据时，可以采用 buffer 数组，依次读取
+ */
+public class ScatteringAndGatheringTest {
+    public static void main(String[] args) throws IOException {
+
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        InetSocketAddress address = new InetSocketAddress(7000);
+
+        // 绑定端口
+        SocketChannel socketChannel = serverSocketChannel.bind(address).accept();
+        ByteBuffer[] byteBuffers = new ByteBuffer[2];
+        byteBuffers[0] = ByteBuffer.allocate(5);
+        byteBuffers[1] = ByteBuffer.allocate(3);
+
+        long messageLength = 8;
+        while (true) {
+            long byteRead = 0;
+            while (byteRead < messageLength) {
+                long len = socketChannel.read(byteBuffers);
+                byteRead += len;
+                System.out.println("byteRead = " + byteRead);
+
+                Arrays.asList(byteBuffers).stream()
+                        .map(byteBuffer -> "position=" + byteBuffer.position() + ", limit=" + byteBuffer.limit())
+                        .forEach(System.out::println);
+            }
+
+            Arrays.asList(byteBuffers).stream()
+                    .forEach(byteBuffer -> byteBuffer.flip());
+
+            long byteWrite = 0;
+            while (byteWrite < messageLength) {
+                long len = socketChannel.write(byteBuffers);
+                byteWrite += len;
+            }
+
+            Arrays.asList(byteBuffers).stream()
+                    .forEach(byteBuffer -> byteBuffer.clear());
+
+            System.out.println("byteRead=" + byteRead + ", byteWrite=" + byteWrite);
+        }
+    }
+}
+```
+
+
+
+## 4、Selector
+
+1）用一个线程，处理多个客户端连接，就会使用到 Selector
+
+2）Selector 能够检测多个注册的通道上是否有事件发生（注意：多个 Channel 以事件的方式可以注册到同一个 Selector）
+
+3）只有在 连接/通道有读写事件发生时，才会进行读写，就大大减少了系统开销，并且不必为每个连接都创建一个线程，
+
+特点：
+
+>1）Netty 的IO 线程 NioEventLoop 聚合了 Selector（多路复用器），可以同时并发处理成百上千个客户端连接。
+>
+>2）当线程从某客户端 Socket通道进行读写数据时，若没有数据可用时，该线程可以进行其它任务
+>
+>3）线程通常将非阻塞IO的空闲用于在其它通道上执行IO操作，所以单独的线程可以管理多个输入和输出通道
+>
+>4）由于读写操作都是非阻塞的，这就可以充分提升 IO 线程的运行效率，避免由于阻塞IO导致的线程挂起
+>
+>
+>
+>

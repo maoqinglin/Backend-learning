@@ -30,13 +30,11 @@
 
 HttpServletRequest：
 
-> 1）获取请求参数：request.getParameter("hello");
+> 1）作为域对象保存数据，同一次请求期间可以共享数据；获取请求参数：request.getParameter("hello");
 >
-> 2）作为域对象保存数据；同一次请求期间可以共享数据；
+> 2）获取到 HttpSession 对象；request.getSession()；
 >
-> 3）获取到 HttpSession 对象；request.getSession()；
->
-> 4）转发；request.getRequestDispatcher("/index.jsp").forward(request, response)
+> 3）转发；request.getRequestDispatcher("/index.jsp").forward(request, response)
 >
 > 将当次的请求和响应交给另外一个程序处理，在服务器内部处理
 
@@ -44,9 +42,7 @@ HttpServletRequest：
 
 HttpServletRespone：
 
-> 重定向： 浏览器收到重定向以后要发送新请求
->
-> response.sendRedirect("重定向的地址");
+> 重定向： 浏览器收到重定向以后要发送新请求，response.sendRedirect("重定向的地址");
 >
 > response.sendRedirect(request.getContextPath()+"/index.jsp")
 
@@ -103,7 +99,7 @@ url-pattern 三种写法
 
 
 
-**1）ServletContext（2个）**
+1）ServletContext
 
 > ServletContext是什么：
 >
@@ -238,18 +234,6 @@ ServletContextAttributeListener：
 
 HttpSessionAttributeListener，ServletRequestAttributeListener类似
 
-> //监听属性添加
->
-> void attributeAdded(ServletContextAttributeEvent  scab)
->
-> //监听属性移除
->
-> void attributeRemoved(ServletContextAttributeEvent  scab)
->
-> //监听属性替换
->
-> void attributeReplaced(ServletContextAttributeEvent  scab)
-
 ```java
 /**
  * MySessionLifeCycleListener 监听所有对象的属性变化，需要注册到 web.xml中
@@ -286,8 +270,6 @@ public class MySessionLifeCycleListener implements HttpSessionListener, HttpSess
 }
 ```
 
-
-
 监听对象的绑定、解绑
 
 HttpSessionBindingListener
@@ -308,7 +290,7 @@ HttpSessionBindingListener
 >
 >    **<span style="color:red">第一次</span>** request.getSession()，也会创建 session
 
-1）**同一浏览器**关闭，再打开，会创建新的 Session（会话session）
+1）**同一浏览器**关闭，再打开，会创建新的 Session（之前的session还在，只是无法使用）
 
 2）**不同浏览器**窗口访问同一页面会创建新的 session，**因为浏览器间不会共享 Cookie**
 
@@ -357,7 +339,40 @@ protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws S
 
 
 
-### 1.3 对象的活化、钝化、绑定、解绑
+### 1.3 为什么关闭浏览器后，就再也访问不到之前的session了呢？
+
+其实之前的Session一直都在服务器端，**而当我们关闭浏览器时，此时的Cookie是存在**
+
+**于浏览器的进程中的，当浏览器关闭时，Cookie也就不存在了。**
+
+其实Cookie有两种:
+
+> **一种是存在于浏览器的进程中;**
+> **一种是存在于硬盘上**
+
+
+而session的Cookie是存在于浏览器的进程中，那么这种Cookie我们称为会话Cookie，
+
+当我们重新打开浏览器窗口时，之前的Cookie中存放的Sessionid已经不存在了，**此时**
+
+**服务器从HttpServletRequest对象中没有检查到sessionid，服务器会再发送一个新的存**
+
+**有Sessionid的Cookie到客户端的浏览器中，此时对应的是一个新的会话，**而服务器上
+
+原先的session等到它的默认时间到之后，便会自动销毁。
+
+ps:
+
+当在同一个浏览器中同时打开多个标签，发送同一个请求或不同的请求，仍是同一个session;
+
+当不在同一个窗口中打开相同的浏览器时，发送请求，仍是同一个session;
+
+**当使用不同的浏览器时，发送请求，即使发送相同的请求，是不同的session;**
+
+当把当前某个浏览器的窗口全关闭，再打开，发起相同的请求时，就是本文所阐述的，是不同的session,但是它和session的生命周期是没有关系的.
+
+
+### 1.4 对象的活化、钝化、绑定、解绑
 
 ```java
 /**
@@ -462,7 +477,7 @@ resp.getWriter().write("give you a cookie");
 
 
 
-**2、浏览器一旦保存Cookie后，访问我们这个网站都会带上这个Cookie；**
+**<span style="color:red">2、浏览器一旦保存Cookie后，访问我们这个网站都会带上这个Cookie；</span>**
 
 3、Cookie有效时间，持久化技术
 
@@ -564,10 +579,6 @@ SubmitServlet{
 
 
 
-
-
-
-
 # 四、JSON 与 AJAX
 
 ## 1、 JS 对象与 JSON
@@ -601,13 +612,15 @@ JSON.parse(str)
 
 原来的交互：
 
-	1. 发送请求
+1. 发送请求
+
  	2. 服务器收到请求，调用对应的 Servlet 进行处理；Servlet 处理完成会有响应信息生成
  	3. 浏览器收到了服务器响应的数据，把之前的页面清除，展示新的数据；（效果就是页面刷新）
 
 现在的交互：
 
-	1. XMLHttpRequest 对象帮我们发送请求
+1. XMLHttpRequest 对象帮我们发送请求
+
  	2. 服务器收到请求，调用对应的 Servlet 进行处理；Servlet 处理完成会有响应信息生成
  	3.  XMLHttpRequest 对象接收数据（浏览器感受不到这个数据了，xhr 对象收到数据） 
 
@@ -749,7 +762,7 @@ public class UploadServlet extends HttpServlet {
 
 ```html
 -----------------------------50481355711423
-Content-Dispo	sition: form-data; name="userName"
+Content-Disposition: form-data; name="userName"
 
 xiaolin
 -----------------------------50481355711423
@@ -821,9 +834,9 @@ response.setHeader("Content-Disposition","attachment;filename=tupian.jpg");
 
 ancestor	 descendant：找后代
 
-parent	>	child			：找元素
+parent	>	child			：找所有子元素
 
-prev		>	next			 ：找下一个兄弟
+prev		+	next			 ：找紧邻 prev 的所有 **next** 元素 （同级）
 
 prev		~	siblings		：找所有的同辈兄弟	
 
@@ -839,7 +852,6 @@ eq（index）：
 $("a:first")  //找到第一个a标签
 $(":first")  //找到文档中第一个标签 <html>
 $("a :first")  //找到 a 的第一个后代元素
-$("a:first")  //找到第一个a标签
 ```
 
 find（）：查找所有后代和子元素
